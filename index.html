@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>نظام الجرد الذكي | ترتيب تنازلي وتأخير</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0f14;
+            --surface: #13161e;
+            --surface2: #1a1e2a;
+            --surface3: #222736;
+            --border: rgba(255,255,255,0.07);
+            --border-glow: rgba(0,212,170,0.3);
+            --accent: #00d4aa;
+            --accent2: #0096ff;
+            --accent3: #ff6b6b;
+            --accent-glow: rgba(0,212,170,0.15);
+            --text: #e8edf5;
+            --text-muted: #6b7a9a;
+            --text-dim: #3d4a63;
+            --gold: #ffd166;
+            --positive: #00d4aa;
+            --negative: #ff6b6b;
+            --neutral: #0096ff;
+            --shadow: rgba(0,0,0,0.35);
+        }
+
+        /* ── الثيم الفاتح ── */
+        body.light-theme {
+            --bg: #f0f4f8;
+            --surface: #ffffff;
+            --surface2: #f4f7fb;
+            --surface3: #e8eef5;
+            --border: rgba(0,0,0,0.08);
+            --border-glow: rgba(0,150,120,0.25);
+            --accent: #00a885;
+            --accent2: #0070cc;
+            --accent3: #e05555;
+            --accent-glow: rgba(0,168,133,0.12);
+            --text: #1a202c;
+            --text-muted: #4a5568;
+            --text-dim: #a0aec0;
+            --gold: #d4900a;
+            --positive: #00a885;
+            --negative: #e05555;
+            --neutral: #0070cc;
+            --shadow: rgba(0,0,0,0.1);
+        }
+        body.light-theme::before {
+            background-image:
+                linear-gradient(rgba(0,168,133,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,168,133,0.04) 1px, transparent 1px);
+        }
+        body.light-theme::after {
+            background: radial-gradient(circle, rgba(0,168,133,0.05) 0%, transparent 65%);
+        }
+        body.light-theme .header {
+            background: linear-gradient(135deg,#0a4d3a 0%,#0d6b50 50%,#0a4d3a 100%) !important;
+        }
+        body.light-theme .data-table th { background: #edf2f7; color: #4a5568; }
+        body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+
+        /* زر تبديل الثيم */
+        #themeToggle {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);
+            color: white; width: 36px; height: 36px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1rem; transition: all 0.2s; flex-shrink: 0;
+        }
+        #themeToggle:hover { background: rgba(255,255,255,0.25); }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            direction: rtl;
+            padding: 16px 14px 60px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Background grid pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: -30%;
+            right: -20%;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(0,212,170,0.06) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .app-container {
+            max-width: 580px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: linear-gradient(135deg, #0d1f2d 0%, #0a1628 50%, #0d1f2d 100%);
+            border-radius: 24px;
+            padding: 22px 20px 18px;
+            margin-bottom: 18px;
+            color: white;
+            border: 1px solid rgba(0,212,170,0.2);
+            box-shadow: 0 0 40px rgba(0,212,170,0.08), 0 20px 40px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        .header h1 i {
+            color: var(--accent);
+            filter: drop-shadow(0 0 8px var(--accent));
+        }
+
+        .header-subtitle {
+            text-align: center;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Header buttons */
+        .header > div button {
+            background: rgba(0,212,170,0.1) !important;
+            border: 1px solid rgba(0,212,170,0.25) !important;
+            color: var(--accent) !important;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.78rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s ease;
+        }
+        .header > div button:hover {
+            background: rgba(0,212,170,0.2) !important;
+            box-shadow: 0 0 16px rgba(0,212,170,0.2);
+        }
+
+        /* ── STATS ── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 16px 8px 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(0,212,170,0.3);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+            opacity: 0.5;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent);
+            font-family: 'Tajawal', sans-serif;
+            line-height: 1;
+            text-shadow: 0 0 20px rgba(0,212,170,0.4);
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 5px;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── TABS ── */
+        .tabs {
+            display: flex;
+            background: var(--surface);
+            border-radius: 14px;
+            padding: 4px;
+            margin-bottom: 16px;
+            gap: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 10px 4px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.68rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .tab-btn i { font-size: 0.75rem; }
+
+        .tab-btn:hover { color: var(--text); }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(0,212,170,0.15), rgba(0,150,255,0.1));
+            color: var(--accent);
+            border: 1px solid rgba(0,212,170,0.25);
+            box-shadow: 0 2px 12px rgba(0,212,170,0.1);
+        }
+
+        /* ── CARD ── */
+        .card {
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 18px 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        /* ── PANEL ── */
+        .panel { display: none; animation: fadeIn 0.25s ease; }
+        .panel.active-pane { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── INPUTS ── */
+        .input-field {
+            width: 100%;
+            padding: 13px 18px;
+            font-size: 0.95rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface2);
+            margin-bottom: 12px;
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.2s;
+        }
+        .input-field::placeholder { color: var(--text-dim); }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0,212,170,0.12);
+            background: var(--surface3);
+        }
+
+        /* ── BUTTONS ── */
+        .btn-primary, .btn-secondary {
+            border: none;
+            padding: 13px 18px;
+            border-radius: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.15s ease;
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.88rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00b894, #00d4aa);
+            color: #021a14;
+            font-weight: 800;
+            box-shadow: 0 4px 20px rgba(0,212,170,0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 28px rgba(0,212,170,0.45); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(1px); box-shadow: 0 2px 10px rgba(0,212,170,0.2); }
+
+        .btn-secondary {
+            background: var(--surface2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { border-color: rgba(0,212,170,0.3); color: var(--accent); }
+
+        /* ── FLEX 2 COLS ── */
+        .flex-2cols { display: flex; gap: 10px; margin: 10px 0; }
+        .flex-2cols .btn { width: auto; flex: 1; }
+
+        /* ── INVENTORY LIST ── */
+        .inventory-list { max-height: 520px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--surface3) transparent; }
+
+        .product-card {
+            background: var(--surface2);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+        .product-card:hover { border-color: rgba(0,212,170,0.2); }
+
+        .product-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .product-info strong { font-size: 0.9rem; font-weight: 700; }
+        .product-info small { color: var(--text-muted); font-size: 0.7rem; }
+
+        .product-quantity {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--accent);
+            background: rgba(0,212,170,0.1);
+            padding: 4px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(0,212,170,0.2);
+            font-family: 'Tajawal', sans-serif;
+            text-shadow: 0 0 12px rgba(0,212,170,0.4);
+        }
+
+        .product-time {
+            font-size: 0.62rem;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
+        .product-actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .icon-btn {
+            background: var(--surface3);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.15s;
+        }
+        .icon-btn:hover { color: var(--accent); border-color: rgba(0,212,170,0.3); }
+
+        /* ── TABLES ── */
+        .data-wrapper {
+            overflow-x: auto;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            margin-top: 12px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            min-width: 380px;
+        }
+
+        .data-table th {
+            background: var(--surface3);
+            color: var(--text-muted);
+            font-weight: 700;
+            padding: 12px 10px;
+            text-align: center;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 11px 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text);
+        }
+
+        .data-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+        .diff-positive { background: rgba(0,212,170,0.12); color: var(--positive); font-weight: 700; }
+        .diff-negative { background: rgba(255,107,107,0.12); color: var(--negative); font-weight: 700; }
+        .diff-zero { background: rgba(0,150,255,0.1); color: var(--neutral); font-weight: 700; }
+
+        /* ── SEARCH ── */
+        .search-input {
+            width: 100%;
+            padding: 11px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+            background: var(--surface2);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+            font-size: 0.88rem;
+        }
+        .search-input::placeholder { color: var(--text-dim); }
+        .search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,170,0.1); }
+
+        /* ── FILE UPLOAD ── */
+        .file-label {
+            background: var(--surface2);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px dashed rgba(0,212,170,0.3);
+            margin-bottom: 14px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .file-label:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0,212,170,0.05);
+        }
+
+        /* ── CAMERA ── */
+        .camera-wrapper {
+            border-radius: 16px;
+            overflow: hidden;
+            margin-top: 12px;
+            background: #000;
+            position: relative;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid rgba(0,212,170,0.2);
+        }
+
+        .camera-selector {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .cam-select {
+            flex: 2;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+        }
+
+        /* ── COMPARE STATS ── */
+        .compare-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .compare-stat-card {
+            background: var(--surface2);
+            border-radius: 12px;
+            padding: 12px 6px;
+            text-align: center;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+        .compare-stat-card:hover { border-color: rgba(0,212,170,0.25); }
+
+        .compare-stat-number {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--accent);
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        .compare-stat-label {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ── FILTER BTNS ── */
+        .filter-btn {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.15s;
+        }
+        .filter-btn.active {
+            background: rgba(0,212,170,0.15);
+            border-color: rgba(0,212,170,0.35);
+            color: var(--accent);
+        }
+
+        /* ── TOAST ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 16px;
+            right: 16px;
+            background: var(--surface3);
+            color: var(--text);
+            text-align: center;
+            padding: 13px 20px;
+            border-radius: 14px;
+            font-size: 0.85rem;
+            z-index: 2100;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,212,170,0.2);
+            font-family: 'Cairo', sans-serif;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── FLASH EFFECTS ── */
+        .flash-green {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(0,212,170,0.3) !important;
+            background: rgba(0,212,170,0.08) !important;
+            transition: 0.08s;
+        }
+        .flash-red {
+            border-color: var(--negative) !important;
+            box-shadow: 0 0 0 3px rgba(255,107,107,0.3) !important;
+            background: rgba(255,107,107,0.06) !important;
+            transition: 0.08s;
+        }
+
+        /* ── MODAL ── */
+        #productModal > div {
+            background: var(--surface) !important;
+            border: 1px solid rgba(0,212,170,0.2) !important;
+            color: var(--text) !important;
+        }
+        #productModal h3 { color: var(--accent); margin-bottom: 16px; font-family: 'Tajawal', sans-serif; }
+        #productModal input {
+            display: block;
+            width: 100%;
+            padding: 11px 14px;
+            margin-bottom: 10px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+        }
+        #productModal input:focus { outline: none; border-color: var(--accent); }
+        #productModal input::placeholder { color: var(--text-dim); }
+        #saveProductBtn {
+            background: linear-gradient(135deg, #00b894, #00d4aa) !important;
+            color: #021a14 !important;
+            font-weight: 800 !important;
+            font-family: 'Cairo', sans-serif;
+        }
+        #closeModalBtn {
+            background: var(--surface2) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--border) !important;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        /* ── INVENTORY COUNT BADGE ── */
+        #inventoryCount {
+            background: rgba(0,212,170,0.15) !important;
+            color: var(--accent) !important;
+            border: 1px solid rgba(0,212,170,0.3) !important;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        /* ── SECTION HEADINGS ── */
+        h4 { color: var(--text-muted); font-size: 0.85rem; font-weight: 700; }
+
+        /* ── SELECT DROPDOWNS ── */
+        select {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+        }
+
+        /* ── MISC ── */
+        .hidden { display: none; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 10px; }
+
+        /* خط مسح الكاميرا المتحرك */
+        @keyframes scanAnim {
+            0%   { top: 20%; opacity: 0.6; }
+            50%  { top: 80%; opacity: 1;   }
+            100% { top: 20%; opacity: 0.6; }
+        }
+
+        /* شريط التقدم */
+        #progressOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+            z-index: 4000; align-items: center; justify-content: center;
+        }
+        #progressOverlay.show { display: flex; }
+        #progressBox {
+            background: var(--surface); border: 1px solid rgba(0,212,170,0.25);
+            border-radius: 20px; padding: 26px 24px 20px;
+            width: 88%; max-width: 360px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        #progressTitle { font-size:0.92rem; font-weight:800; color:var(--text); margin-bottom:5px; font-family:'Tajawal',sans-serif; }
+        #progressSub   { font-size:0.72rem; color:var(--text-muted); margin-bottom:14px; min-height:16px; }
+        #progressTrack { height:9px; background:var(--surface3); border-radius:99px; overflow:hidden; margin-bottom:8px; }
+        #progressFill  { height:100%; width:0%; background:linear-gradient(90deg,#00b894,#00d4aa); border-radius:99px; transition:width 0.2s ease; box-shadow:0 0 10px rgba(0,212,170,0.4); }
+        #progressPct   { text-align:left; font-size:0.8rem; color:var(--accent); font-weight:800; font-family:'Tajawal',sans-serif; }
+    </style>
+</head>
+<body>
+
+    <!-- شريط التقدم -->
+    <div id="progressOverlay">
+        <div id="progressBox">
+            <div id="progressTitle">جاري المعالجة...</div>
+            <div id="progressSub"></div>
+            <div id="progressTrack"><div id="progressFill"></div></div>
+            <div id="progressPct">0%</div>
+        </div>
+    </div>
+<div class="app-container">
+    <div class="header" style="position:relative;">
+        <button id="themeToggle" title="تبديل الثيم"><i class="fas fa-moon"></i></button>
+        <h1><i class="fas fa-cube"></i> نظام الجرد الذكي</h1>
+        <div class="header-subtitle">SMART INVENTORY SYSTEM</div>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 14px;">
+            <button id="globalResetBtn" style="border: none; padding: 7px 16px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.8rem;"><i class="fas fa-sync-alt"></i> إعادة تعيين</button>
+            <button id="globalManualBtn" style="border: none; padding: 7px 16px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 0.8rem;"><i class="fas fa-plus-circle"></i> إضافة منتج</button>
+        </div>
+    </div>
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-number" id="totalProductsStat">0</div><div class="stat-label">إجمالي المنتجات</div></div>
+        <div class="stat-card"><div class="stat-number" id="totalInventoryStat">0</div><div class="stat-label">أصناف مجرودة</div></div>
+        <div class="stat-card"><div class="stat-number" id="sessionScansStat">0</div><div class="stat-label">عمليات الجرد</div></div>
+    </div>
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-scan"><i class="fas fa-camera"></i> المسح</button>
+        <button class="tab-btn" data-tab="tab-inv"><i class="fas fa-clipboard-list"></i> الجرد</button>
+        <button class="tab-btn" data-tab="tab-stock"><i class="fas fa-database"></i> المرجع</button>
+        <button class="tab-btn" data-tab="tab-cmp"><i class="fas fa-chart-line"></i> المقارنة</button>
+        <button class="tab-btn" data-tab="tab-products"><i class="fas fa-archive"></i> المنتجات</button>
+    </div>
+    <div id="tab-scan" class="panel active-pane">
+        <div class="card" id="scanCard">
+
+            <!-- مؤشر حالة السكانر -->
+            <div id="scanStatusBar" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); margin-bottom:14px;">
+                <div id="scanDot" style="width:10px; height:10px; border-radius:50%; background:var(--text-dim); flex-shrink:0; transition:background 0.3s;"></div>
+                <span id="scanStatusText" style="font-size:0.8rem; color:var(--text-muted); flex:1;">جاهز للمسح</span>
+                <span id="scanCooldownBadge" style="display:none; font-size:0.72rem; background:rgba(255,107,107,0.15); color:var(--negative); padding:3px 10px; border-radius:6px; border:1px solid rgba(255,107,107,0.2);">⏳ انتظر...</span>
+            </div>
+
+            <!-- حقل الإدخال اليدوي -->
+            <div style="position:relative; margin-bottom:12px;">
+                <input type="text" id="barcodeInput" class="input-field" style="margin-bottom:0; padding-left:48px;" placeholder="✍️ اكتب باركود أو رقم صنف ثم Enter" autocomplete="off" inputmode="text">
+                <button id="addOneBtn" style="position:absolute; left:6px; top:50%; transform:translateY(-50%); background:var(--accent); border:none; width:36px; height:36px; border-radius:8px; color:#021a14; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <!-- كاميرا: اختيار + أزرار -->
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center; flex-wrap:wrap;">
+                <select id="cameraSelect" class="cam-select" style="flex:2; min-width:0;"><option value="">تحميل الكاميرات...</option></select>
+                <button id="startCamBtn" class="btn-primary" style="width:auto; padding:10px 14px; flex-shrink:0; gap:6px; font-size:0.8rem;">
+                    <i class="fas fa-camera"></i> فتح
+                </button>
+                <button id="switchCamBtn" class="btn-secondary" style="width:auto; padding:10px 12px; flex-shrink:0;" title="تبديل الكاميرا">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <!-- ضبط التأخير بين المسحات -->
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; padding:10px 14px; background:var(--surface2); border-radius:12px; border:1px solid var(--border);">
+                <i class="fas fa-sliders-h" style="color:var(--text-muted); font-size:0.85rem;"></i>
+                <label style="font-size:0.78rem; color:var(--text-muted); white-space:nowrap;">تأخير المسح:</label>
+                <input type="range" id="delaySlider" min="500" max="5000" step="250" value="1500"
+                    style="flex:1; accent-color:var(--accent); cursor:pointer;">
+                <span id="delayLabel" style="font-size:0.8rem; color:var(--accent); font-weight:700; min-width:36px; text-align:center;">1.5s</span>
+            </div>
+
+            <!-- نافذة الكاميرا -->
+            <div id="cameraDiv" class="camera-wrapper hidden" style="position:relative;">
+                <div id="reader2"></div>
+                <!-- خط المسح المتحرك -->
+                <div id="scanLine" style="display:none; position:absolute; left:10%; right:10%; height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); border-radius:2px; animation:scanAnim 1.8s ease-in-out infinite; top:50%; z-index:10; box-shadow:0 0 10px var(--accent);"></div>
+                <button id="closeCamBtn" class="btn-secondary" style="margin:8px; border-radius:10px; padding:10px;">
+                    <i class="fas fa-times-circle"></i> إغلاق الكاميرا
+                </button>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button id="resetInventoryBtn" class="btn-secondary" style="gap:6px; font-size:0.82rem;">
+                    <i class="fas fa-trash-alt"></i> مسح الجرد
+                </button>
+            </div>
+
+            <!-- رأس قائمة الجرد -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:20px; margin-bottom:10px;">
+                <h4 style="display:flex; align-items:center; gap:8px; color:var(--text-muted); font-size:0.82rem;">
+                    <i class="fas fa-list-ol" style="color:var(--accent);"></i> سجل المسحات التفصيلي
+                    <span id="inventoryCount" style="background:rgba(0,212,170,0.12); color:var(--accent); border:1px solid rgba(0,212,170,0.25); border-radius:8px; padding:1px 10px; font-size:0.78rem;">0</span>
+                </h4>
+                <span id="lastScanInfo" style="font-size:0.68rem; color:var(--text-dim);"></span>
+            </div>
+            <div id="inventoryListContainer" class="inventory-list"></div>
+        </div>
+    </div>
+    <!-- باقي التبويبات -->
+    <div id="tab-inv" class="panel"><div class="card">
+
+        <!-- استيراد الجرد -->
+        <div style="margin-bottom:14px; padding:14px; border-radius:14px; background:var(--surface2); border:1px solid var(--border);">
+            <div style="font-size:0.82rem; font-weight:700; color:var(--text-muted); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-file-import" style="color:var(--accent);"></i> استيراد الجرد من Excel
+            </div>
+            <label style="display:block; padding:12px; border-radius:10px; border:1px dashed rgba(0,212,170,0.3); text-align:center; cursor:pointer; color:var(--text-muted); font-size:0.82rem; margin-bottom:10px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='rgba(0,212,170,0.3)'">
+                <i class="fas fa-upload" style="color:var(--accent); margin-left:6px;"></i> اختر ملف Excel للجرد
+                <input type="file" id="invImportFile" style="display:none;" accept=".xlsx,.xlsm,.xlsb,.csv">
+            </label>
+            <div style="display:flex; gap:8px;">
+                <button id="invImportReplaceBtn" class="btn-primary" style="flex:1; gap:6px; font-size:0.8rem; padding:10px;">
+                    <i class="fas fa-sync-alt"></i> تحديث (يمسح الجرد القديم)
+                </button>
+                <button id="invImportMergeBtn" class="btn-secondary" style="flex:1; gap:6px; font-size:0.8rem; padding:10px;">
+                    <i class="fas fa-code-merge"></i> دمج (يضيف للموجود)
+                </button>
+            </div>
+        </div>
+
+        <input type="text" id="searchInventory" class="search-input" placeholder="🔍 بحث في سجل الجرد">
+        <button id="exportInventoryBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+        <div id="inventoryFullTable" class="data-wrapper"></div>
+    </div></div>
+    <div id="tab-stock" class="panel"><div class="card">
+        <div style="font-weight:700; margin-bottom:12px; font-size:0.9rem; display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-file-excel" style="color:var(--accent);"></i> رفع ملف الرصيد الفعلي (مرجع)
+        </div>
+
+        <!-- شرح طريقة الرفع -->
+        <div style="background:linear-gradient(135deg,rgba(0,150,255,0.07),rgba(0,212,170,0.05)); border:1px solid rgba(0,150,255,0.18); border-radius:13px; padding:13px 14px; margin-bottom:14px; font-size:0.76rem; line-height:1.8; color:var(--text-muted);">
+            <div style="font-weight:800; color:var(--accent2); margin-bottom:8px; font-size:0.8rem; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-info-circle"></i> كيف يعمل ملف المرجع؟
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:var(--accent); font-weight:800; min-width:18px;">1</span>
+                    <span>ارفع ملف <strong>Excel</strong> (ملف اكسيل الارصدة) يحتوي على أعمدة: <span style="background:rgba(0,212,170,0.12); padding:1px 7px; border-radius:5px; color:var(--accent); font-weight:700;">رقم الصنف</span> + <span style="background:rgba(0,212,170,0.12); padding:1px 7px; border-radius:5px; color:var(--accent); font-weight:700;">الاسم</span> + <span style="background:rgba(0,212,170,0.12); padding:1px 7px; border-radius:5px; color:var(--accent); font-weight:700;">الفعلي النهائي</span> — وإن لم يوجد يبحث عن عمود <span style="background:rgba(0,212,170,0.12); padding:1px 7px; border-radius:5px; color:var(--accent); font-weight:700;">كمية التحويل</span> حصراً</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:var(--accent); font-weight:800; min-width:18px;">2</span>
+                    <span><strong style="color:var(--text);">استبدال</strong> — يمسح المرجع القديم ويضع الجديد مكانه</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:var(--accent); font-weight:800; min-width:18px;">3</span>
+                    <span><strong style="color:var(--text);">دمج</strong> — يضيف الكميات الجديدة على الأصناف الموجودة ويضيف الأصناف غير الموجودة</span>
+                </div>
+            </div>
+            <div style="margin-top:10px; padding:8px 10px; background:rgba(255,209,102,0.08); border-radius:8px; border:1px solid rgba(255,209,102,0.15); color:var(--gold); font-size:0.72rem;">
+                <i class="fas fa-lightbulb" style="margin-left:4px;"></i> يُستخدم المرجع في صفحة المقارنة لحساب الفروقات بين الكمية الفعلية والمجردة
+            </div>
+        </div>
+
+        <div class="file-label" id="stockUploadArea"><i class="fas fa-upload"></i> اختر ملف Excel <input type="file" id="stockFileInput" style="display:none;" accept=".xlsx,.xlsm,.xlsb"></div>
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <select id="stockModeSelect" style="flex:1; padding:10px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'Cairo',sans-serif;"><option value="replace">استبدال</option><option value="merge">دمج</option></select>
+            <button id="processStockBtn" class="btn-primary" style="width:auto; padding:10px 18px;"><i class="fas fa-play"></i> معالجة</button>
+        </div>
+        <button id="exportStockBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> تصدير المرجع</button>
+        <div id="stockTableContainer" class="data-wrapper"></div>
+    </div></div>
+    <div id="tab-cmp" class="panel"><div class="card"><input type="text" id="searchCompare" class="search-input" placeholder="🔍 بحث في المقارنة">
+
+        <!-- بطاقات الإحصائيات المجسّمة -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+
+            <!-- الفعلي - رمادي/محايد -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#1e2436,#161b28);
+                border:1px solid rgba(148,163,184,0.2);
+                box-shadow:0 6px 0 rgba(0,0,0,0.4), 0 10px 20px rgba(0,0,0,0.3);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#64748b,#94a3b8);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#334155,#1e293b);
+                    box-shadow:0 4px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);">
+                    <i class="fas fa-boxes" style="color:#94a3b8;font-size:1rem;"></i>
+                </div>
+                <div id="statsActualItems" style="font-size:1.8rem;font-weight:900;color:#cbd5e1;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 2px 8px rgba(0,0,0,0.4);">0</div>
+                <div style="font-size:0.6rem;color:#64748b;margin-top:5px;font-weight:700;letter-spacing:0.5px;">المرجع</div>
+            </div>
+
+            <!-- زيادة - أخضر -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#0d2b1e,#071a10);
+                border:1px solid rgba(0,212,130,0.25);
+                box-shadow:0 6px 0 rgba(0,100,50,0.5), 0 10px 24px rgba(0,180,100,0.12);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#00b865,#00d4aa);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#065f40,#022c1e);
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(0,255,150,0.15);">
+                    <i class="fas fa-arrow-trend-up" style="color:#00d4aa;font-size:1rem;filter:drop-shadow(0 0 6px #00d4aa88);"></i>
+                </div>
+                <div id="statsIncreaseCount" style="font-size:1.8rem;font-weight:900;color:#00d4aa;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 0 16px rgba(0,212,170,0.5);">0</div>
+                <div style="font-size:0.6rem;color:#00b865;margin-top:5px;font-weight:700;letter-spacing:0.5px;">زيادة ⬆</div>
+            </div>
+
+            <!-- نقص - أحمر -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#2b0d0d,#1a0707);
+                border:1px solid rgba(255,80,80,0.22);
+                box-shadow:0 6px 0 rgba(120,0,0,0.5), 0 10px 24px rgba(255,80,80,0.1);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#ff4444,#ff6b6b);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#5f0606,#2c0202);
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,100,100,0.15);">
+                    <i class="fas fa-arrow-trend-down" style="color:#ff6b6b;font-size:1rem;filter:drop-shadow(0 0 6px #ff6b6b88);"></i>
+                </div>
+                <div id="statsDecreaseCount" style="font-size:1.8rem;font-weight:900;color:#ff6b6b;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 0 16px rgba(255,107,107,0.5);">0</div>
+                <div style="font-size:0.6rem;color:#ff4444;margin-top:5px;font-weight:700;letter-spacing:0.5px;">نقص ⬇</div>
+            </div>
+
+            <!-- مطابق - أزرق -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#0d1a2b,#071018);
+                border:1px solid rgba(0,150,255,0.22);
+                box-shadow:0 6px 0 rgba(0,60,120,0.5), 0 10px 24px rgba(0,150,255,0.1);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#0096ff,#38bdf8);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#063a5f,#021a30);
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(56,189,248,0.15);">
+                    <i class="fas fa-check-double" style="color:#38bdf8;font-size:1rem;filter:drop-shadow(0 0 6px #0096ff88);"></i>
+                </div>
+                <div id="statsMatchCount" style="font-size:1.8rem;font-weight:900;color:#38bdf8;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 0 16px rgba(56,189,248,0.5);">0</div>
+                <div style="font-size:0.6rem;color:#0096ff;margin-top:5px;font-weight:700;letter-spacing:0.5px;">مطابق ✓</div>
+            </div>
+
+            <!-- المجرود - برتقالي/ذهبي -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#2b1e0a,#1a1007);
+                border:1px solid rgba(255,200,50,0.22);
+                box-shadow:0 6px 0 rgba(120,80,0,0.5), 0 10px 24px rgba(255,180,50,0.1);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,#ffd166);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#5f3a06,#2c1a02);
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,200,80,0.15);">
+                    <i class="fas fa-barcode" style="color:#ffd166;font-size:1rem;filter:drop-shadow(0 0 6px #ffd16688);"></i>
+                </div>
+                <div id="statsScannedCount" style="font-size:1.8rem;font-weight:900;color:#ffd166;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 0 16px rgba(255,209,102,0.5);">0</div>
+                <div style="font-size:0.6rem;color:#f59e0b;margin-top:5px;font-weight:700;letter-spacing:0.5px;">المجرود 🔄</div>
+            </div>
+
+            <!-- الفرق - بنفسجي -->
+            <div style="border-radius:16px; padding:14px 8px 10px; text-align:center; position:relative; overflow:hidden;
+                background:linear-gradient(145deg,#1a0d2b,#100718);
+                border:1px solid rgba(168,85,247,0.22);
+                box-shadow:0 6px 0 rgba(80,0,120,0.5), 0 10px 24px rgba(168,85,247,0.1);">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a855f7,#c084fc);border-radius:16px 16px 0 0;"></div>
+                <div style="width:38px;height:38px;border-radius:12px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;
+                    background:linear-gradient(145deg,#3b0764,#1a0330);
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(192,132,252,0.15);">
+                    <i class="fas fa-scale-balanced" style="color:#c084fc;font-size:1rem;filter:drop-shadow(0 0 6px #a855f788);"></i>
+                </div>
+                <div id="statsTotalDiff" style="font-size:1.8rem;font-weight:900;color:#c084fc;font-family:'Tajawal',sans-serif;line-height:1;text-shadow:0 0 16px rgba(192,132,252,0.5);">0</div>
+                <div style="font-size:0.6rem;color:#a855f7;margin-top:5px;font-weight:700;letter-spacing:0.5px;">الفرق ⚖</div>
+            </div>
+
+        </div>
+
+        <!-- أزرار الفلتر المجسّمة -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-bottom:14px;">
+
+            <!-- الكل -->
+            <button class="filter-btn active" data-filter="all"
+                style="border-radius:14px; padding:13px 6px; border:none; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; font-weight:800; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; overflow:hidden; transition:all 0.15s;
+                background:linear-gradient(145deg,#1e2436,#131828);
+                box-shadow:0 5px 0 rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3);
+                border:1px solid rgba(148,163,184,0.15); color:#94a3b8;">
+                <i class="fas fa-border-all" style="font-size:1.1rem;"></i>
+                الكل
+            </button>
+
+            <!-- زيادة - أخضر -->
+            <button class="filter-btn" data-filter="increase"
+                style="border-radius:14px; padding:13px 6px; border:none; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; font-weight:800; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; overflow:hidden; transition:all 0.15s;
+                background:linear-gradient(145deg,#0d2b1e,#071510);
+                box-shadow:0 5px 0 rgba(0,80,40,0.6), 0 8px 20px rgba(0,180,100,0.1);
+                border:1px solid rgba(0,212,130,0.2); color:#00d4aa;">
+                <i class="fas fa-arrow-up" style="font-size:1.1rem; filter:drop-shadow(0 0 5px #00d4aa66);"></i>
+                زيادة
+            </button>
+
+            <!-- نقص - أحمر -->
+            <button class="filter-btn" data-filter="decrease"
+                style="border-radius:14px; padding:13px 6px; border:none; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; font-weight:800; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; overflow:hidden; transition:all 0.15s;
+                background:linear-gradient(145deg,#2b0d0d,#180707);
+                box-shadow:0 5px 0 rgba(100,0,0,0.6), 0 8px 20px rgba(255,80,80,0.1);
+                border:1px solid rgba(255,80,80,0.2); color:#ff6b6b;">
+                <i class="fas fa-arrow-down" style="font-size:1.1rem; filter:drop-shadow(0 0 5px #ff6b6b66);"></i>
+                نقص
+            </button>
+
+            <!-- مطابق - أزرق -->
+            <button class="filter-btn" data-filter="match"
+                style="border-radius:14px; padding:13px 6px; border:none; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; font-weight:800; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; overflow:hidden; transition:all 0.15s;
+                background:linear-gradient(145deg,#0d1a2b,#070f1a);
+                box-shadow:0 5px 0 rgba(0,50,100,0.6), 0 8px 20px rgba(0,150,255,0.1);
+                border:1px solid rgba(0,150,255,0.2); color:#38bdf8;">
+                <i class="fas fa-check-double" style="font-size:1.1rem; filter:drop-shadow(0 0 5px #38bdf866);"></i>
+                مطابق
+            </button>
+
+            <!-- تم جرده - ذهبي -->
+            <button class="filter-btn" data-filter="scanned"
+                style="border-radius:14px; padding:13px 6px; border:none; cursor:pointer; font-family:'Cairo',sans-serif; font-size:0.82rem; font-weight:800; display:flex; flex-direction:column; align-items:center; gap:5px; position:relative; overflow:hidden; transition:all 0.15s;
+                background:linear-gradient(145deg,#2b1e0a,#170f04);
+                box-shadow:0 5px 0 rgba(100,70,0,0.6), 0 8px 20px rgba(255,180,50,0.1);
+                border:1px solid rgba(255,200,50,0.2); color:#ffd166;">
+                <i class="fas fa-barcode" style="font-size:1.1rem; filter:drop-shadow(0 0 5px #ffd16666);"></i>
+                تم جرده
+            </button>
+
+        </div>
+
+        <style>
+        .filter-btn:active { transform: translateY(3px) !important; box-shadow: 0 2px 0 rgba(0,0,0,0.5) !important; }
+        .filter-btn[data-filter="all"].active    { background:linear-gradient(145deg,#2a3148,#1a2035) !important; border-color:rgba(148,163,184,0.45) !important; box-shadow:0 5px 0 rgba(0,0,0,0.5), 0 0 16px rgba(148,163,184,0.12) !important; color:#e2e8f0 !important; }
+        .filter-btn[data-filter="increase"].active { background:linear-gradient(145deg,#0f3d24,#082016) !important; border-color:rgba(0,212,130,0.5) !important; box-shadow:0 5px 0 rgba(0,80,40,0.7), 0 0 20px rgba(0,212,130,0.2) !important; color:#00ffbb !important; }
+        .filter-btn[data-filter="decrease"].active { background:linear-gradient(145deg,#3d0f0f,#200808) !important; border-color:rgba(255,80,80,0.5) !important; box-shadow:0 5px 0 rgba(100,0,0,0.7), 0 0 20px rgba(255,80,80,0.2) !important; color:#ff8888 !important; }
+        .filter-btn[data-filter="match"].active   { background:linear-gradient(145deg,#0f243d,#081420) !important; border-color:rgba(0,150,255,0.5) !important; box-shadow:0 5px 0 rgba(0,50,100,0.7), 0 0 20px rgba(0,150,255,0.2) !important; color:#7dd3fc !important; }
+        .filter-btn[data-filter="scanned"].active { background:linear-gradient(145deg,#3d2c0f,#201608) !important; border-color:rgba(255,200,50,0.5) !important; box-shadow:0 5px 0 rgba(100,70,0,0.7), 0 0 20px rgba(255,200,50,0.2) !important; color:#ffe599 !important; }
+        </style><button id="exportCompareBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> تصدير المقارنة</button><div id="comparisonTableDiv" class="data-wrapper"></div></div></div>
+    <div id="tab-products" class="panel"><div class="card">
+
+        <!-- شرح طريقة الرفع -->
+        <div style="background:linear-gradient(135deg,rgba(168,85,247,0.07),rgba(0,212,170,0.04)); border:1px solid rgba(168,85,247,0.18); border-radius:13px; padding:13px 14px; margin-bottom:14px; font-size:0.76rem; line-height:1.8; color:var(--text-muted);">
+            <div style="font-weight:800; color:#a855f7; margin-bottom:8px; font-size:0.8rem; display:flex; align-items:center; gap:6px;">
+                <i class="fas fa-info-circle"></i> كيف يعمل ملف المنتجات؟
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:#a855f7; font-weight:800; min-width:18px;">1</span>
+                    <span>ارفع ملف <strong>Excel</strong> (ملف التسعير) يحتوي على أعمدة: <span style="background:rgba(168,85,247,0.12); padding:1px 7px; border-radius:5px; color:#a855f7; font-weight:700;">الباركود</span> + <span style="background:rgba(168,85,247,0.12); padding:1px 7px; border-radius:5px; color:#a855f7; font-weight:700;">رقم الصنف</span> + <span style="background:rgba(168,85,247,0.12); padding:1px 7px; border-radius:5px; color:#a855f7; font-weight:700;">اسم الصنف</span></span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:#a855f7; font-weight:800; min-width:18px;">2</span>
+                    <span>يمكن رفع <strong>أكثر من ملف</strong> دفعة واحدة — سيتم دمجها تلقائياً</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:#a855f7; font-weight:800; min-width:18px;">3</span>
+                    <span><strong style="color:var(--text);">معالجة عادي</strong> — يفلتر الصفوف ويزيل المكرر والفاضي تلقائياً</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <span style="color:#a855f7; font-weight:800; min-width:18px;">4</span>
+                    <span><strong style="color:var(--text);">بدون فلتر</strong> — يرفع الملف كما هو دون حذف أي صف</span>
+                </div>
+            </div>
+            <div style="margin-top:10px; padding:8px 10px; background:rgba(255,209,102,0.08); border-radius:8px; border:1px solid rgba(255,209,102,0.15); color:var(--gold); font-size:0.72rem;">
+                <i class="fas fa-lightbulb" style="margin-left:4px;"></i> المنتجات تُستخدم للتعرف التلقائي على الباركود أثناء المسح وفي صفحة المقارنة
+            </div>
+        </div>
+
+        <div class="file-label" id="dbUploadArea"><i class="fas fa-upload"></i> رفع ملف المنتجات <input type="file" id="dbFileInput" style="display:none;" multiple></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <button id="processDbBtn" class="btn-primary">معالجة عادي</button>
+            <button id="processDbNoFilterBtn" class="btn-secondary">بدون فلتر</button>
+        </div>
+        <button id="exportProductsBtn" class="btn-secondary"><i class="fas fa-file-excel"></i> تصدير المنتجات</button>
+        <div id="productsTableContainer" class="data-wrapper"></div>
+        <button id="clearProductsBtn" class="btn-secondary" style="margin-top:12px;">مسح كل المنتجات</button>
+    </div></div>
+</div>
+<div id="productModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); justify-content:center; align-items:center; z-index:3000;">
+    <div style="background:#13161e; border-radius:20px; padding:24px; width:90%; max-width:380px; border:1px solid rgba(0,212,170,0.2); box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+        <h3 style="color:#00d4aa; margin-bottom:16px; font-family:'Tajawal',sans-serif;">➕ إضافة منتج</h3>
+        <input type="text" id="modalItemNo" placeholder="رقم الصنف *" style="display:block;width:100%;padding:11px 14px;margin-bottom:10px;background:#1a1e2a;border:1px solid rgba(255,255,255,0.07);border-radius:10px;color:#e8edf5;font-family:'Cairo',sans-serif;"><input type="text" id="modalName" placeholder="الاسم *" style="display:block;width:100%;padding:11px 14px;margin-bottom:10px;background:#1a1e2a;border:1px solid rgba(255,255,255,0.07);border-radius:10px;color:#e8edf5;font-family:'Cairo',sans-serif;"><input type="text" id="modalBarcode" placeholder="الباركود (اختياري)" style="display:block;width:100%;padding:11px 14px;margin-bottom:10px;background:#1a1e2a;border:1px solid rgba(255,255,255,0.07);border-radius:10px;color:#e8edf5;font-family:'Cairo',sans-serif;"><input type="number" id="modalQty" placeholder="كمية مرجعية" value="0" style="display:block;width:100%;padding:11px 14px;margin-bottom:10px;background:#1a1e2a;border:1px solid rgba(255,255,255,0.07);border-radius:10px;color:#e8edf5;font-family:'Cairo',sans-serif;">
+        <div style="display:flex; gap:12px; margin-top:12px;"><button id="saveProductBtn" style="background:linear-gradient(135deg,#00b894,#00d4aa); color:#021a14; border:none; padding:12px; border-radius:10px; flex:1; font-weight:800; font-family:'Cairo',sans-serif; cursor:pointer;">حفظ</button><button id="closeModalBtn" style="background:#1a1e2a; color:#e8edf5; border:1px solid rgba(255,255,255,0.07); padding:12px; border-radius:10px; flex:1; cursor:pointer; font-family:'Cairo',sans-serif;">إلغاء</button></div>
+    </div>
+</div>
+<script>
+    let db;
+    const DB_NAME = "InvSmartDB_Timed";
+    const DB_VERSION = 2;
+    let inventory = [];
+    let html5QrScanner = null;
+    let scanningActive = false;
+    let availableCameras = [];
+    let currentCameraId = null;
+    let lastScanTime = 0;
+    let scanDelay = 1500;
+    let audioCtx = null;
+    let isScanLocked = false;
+
+    // ── نظام التأكيد المزدوج لمنع القراءة الخاطئة ──
+    let pendingCode  = null;    // الكود المنتظر تأكيده
+    let pendingCount = 0;       // عدد مرات قراءته متتالياً
+    let pendingTimer = null;    // مؤقت إلغاء الكود المعلّق
+    const CONFIRM_HITS   = 2;   // يجب قراءته مرتين متتاليتين
+    const CONFIRM_WINDOW = 700; // خلال 700ms
+
+    // ── تنظيف وتحقق من صحة الباركود ──
+    function sanitizeBarcode(raw) {
+        if (!raw) return null;
+        let v = String(raw).trim().replace(/[\x00-\x1F\x7F]/g, '').replace(/\.0+$/, '');
+        if (v.length < 3)  return null;  // أقصر من 3 أحرف: مرفوض
+        if (v.length > 50) return null;  // أطول من 50: مرفوض
+        if (/^(.)\1{5,}$/.test(v)) return null; // كله نفس الحرف (000000): مرفوض
+        return v;
+    }
+
+    // ── مُعالج الكاميرا بالتأكيد المزدوج ──
+    function onCameraScan(rawDecoded) {
+        const code = sanitizeBarcode(rawDecoded);
+        if (!code) return;
+        if (isScanLocked) return; // لا تقبل مسحات أثناء المعالجة
+        if (code === pendingCode) {
+            pendingCount++;
+            setScanStatus('confirm', `⏳ تأكيد: ${code} (${pendingCount}/${CONFIRM_HITS})`);
+            if (pendingCount >= CONFIRM_HITS) {
+                clearTimeout(pendingTimer);
+                const confirmed = pendingCode;
+                pendingCode  = null;
+                pendingCount = 0;
+                initAudio();
+                lookupAndAdd(confirmed);
+            }
+        } else {
+            clearTimeout(pendingTimer);
+            pendingCode  = code;
+            pendingCount = 1;
+            setScanStatus('confirm', `⏳ قراءة أولى: ${code}...`);
+            pendingTimer = setTimeout(() => {
+                pendingCode  = null;
+                pendingCount = 0;
+                if (scanningActive) setScanStatus('ready', 'الكاميرا نشطة — وجّه الباركود');
+            }, CONFIRM_WINDOW);
+        }
+    }
+
+    // ── ضبط التأخير بالـ slider ──
+    document.getElementById('delaySlider').addEventListener('input', function() {
+        scanDelay = parseInt(this.value);
+        const sec = (scanDelay / 1000).toFixed(1);
+        document.getElementById('delayLabel').textContent = sec + 's';
+        // إعادة ضبط lastScanTime لتطبيق التغيير فوراً
+        lastScanTime = 0;
+    });
+
+    // ── حالة السكانر ──
+    function setScanStatus(state, msg) {
+        const dot   = document.getElementById('scanDot');
+        const text  = document.getElementById('scanStatusText');
+        const badge = document.getElementById('scanCooldownBadge');
+        if (!dot || !text) return;
+        const colors = {
+            idle:     'var(--text-dim)',
+            ready:    'var(--accent)',
+            scanning: '#ffd166',
+            locked:   'var(--negative)',
+            confirm:  '#a78bfa'   // بنفسجي: انتظار التأكيد
+        };
+        dot.style.background = colors[state] || colors.idle;
+        text.textContent = msg || 'جاهز للمسح';
+        badge.style.display = (state === 'locked') ? 'inline-block' : 'none';
+    }
+
+    // ── الصوت المحسّن ──
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    function playBeep(success) {
+        if (!audioCtx) initAudio();
+        try {
+            const now = audioCtx.currentTime;
+            if (success) {
+                // نغمتان صاعدتان قصيرتان
+                [880, 1100].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    const t = now + i * 0.12;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, t);
+                    gain.gain.setValueAtTime(0.22, t);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+                    osc.start(t); osc.stop(t + 0.18);
+                });
+            } else {
+                // نغمة هابطة للخطأ
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(140, now + 0.35);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            }
+        } catch(e) {}
+    }
+    function flashCard(color) {
+        const card = document.getElementById('scanCard');
+        if (!card) return;
+        card.classList.remove('flash-green', 'flash-red');
+        void card.offsetWidth; // reflow لإعادة تشغيل الأنيميشن
+        card.classList.add(color === 'green' ? 'flash-green' : 'flash-red');
+        setTimeout(() => card.classList.remove('flash-green', 'flash-red'), 500);
+    }
+    function showToast(msg, isErr = false, duration = 3000) {
+        let t = document.querySelector('.toast'); if (t) t.remove();
+        const toast = document.createElement('div'); toast.className = 'toast';
+        toast.style.background = isErr ? 'rgba(255,107,107,0.15)' : 'rgba(0,212,170,0.12)';
+        toast.style.border = isErr ? '1px solid rgba(255,107,107,0.3)' : '1px solid rgba(0,212,170,0.3)';
+        toast.style.color = isErr ? 'var(--negative)' : 'var(--accent)';
+        toast.innerHTML = `<i class="fas ${isErr ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i> ${msg}`;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.3s'; setTimeout(()=>toast.remove(),300); }, duration);
+    }
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+    function generateUniqueId() { return Date.now() + '-' + Math.random().toString(36).substr(2, 9) + '-' + performance.now(); }
+
+    // دوال الملفات كما هي
+    function readExcelFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", blankrows: false });
+                    resolve(rows);
+                } catch (err) { reject(err); }
+            };
+            reader.onerror = () => reject(new Error("فشل القراءة"));
+            reader.readAsArrayBuffer(file);
+        });
+    }
+    function getCommonBlacklist(rows) {
+        const counts = new Map();
+        for (let i = 0; i < Math.min(rows.length, 100); i++) {
+            const row = rows[i]; if (!Array.isArray(row)) continue;
+            for (let cell of row) { let v = String(cell || '').trim(); if (v) counts.set(v, (counts.get(v) || 0) + 1); }
+        }
+        const black = []; for (let [txt, c] of counts.entries()) if (c > 15) black.push(txt);
+        return black;
+    }
+    function parseProductRow(row, blacklist) {
+        let res = { barcode: "", item_no: "", name: "" };
+        if (!Array.isArray(row)) return res;
+        let candidates = { long: [], dash: [], text: [] };
+        for (let cell of row) {
+            let v = String(cell || '').trim();
+            if (!v || blacklist.includes(v)) continue;
+            if (/^\d+\.0+$/.test(v)) v = v.replace(/\.0+$/, '');
+            let digits = v.replace(/[^\d]/g, '');
+            if (digits.length >= 8 && digits.length <= 20) candidates.long.push(v);
+            if (v.includes('-') && v.length > 8) candidates.dash.push(v);
+            if (/[a-zA-Z\u0600-\u06FF]/.test(v) && v.length > 2 && !/^\d+$/.test(v)) candidates.text.push(v);
+        }
+        if (candidates.dash.length) res.item_no = candidates.dash[0];
+        else if (candidates.long.length) res.item_no = candidates.long[0];
+        if (candidates.long.length) {
+            for (let n of candidates.long) if (n !== res.item_no) { res.barcode = n; break; }
+            if (!res.barcode && candidates.long.length) res.barcode = candidates.long[0];
+        }
+        if (candidates.text.length) res.name = candidates.text[0];
+        return res;
+    }
+    function parseStockRow(row, blacklist, qtyCol) {
+        let d = { item_no: "", name: "", qty: 0 };
+        if (qtyCol !== undefined && row[qtyCol] !== undefined) {
+            let q = parseFloat(String(row[qtyCol]).replace(/[^\d.-]/g, ''));
+            d.qty = isNaN(q) ? 0 : q;
+        }
+        for (let cell of row) {
+            let v = String(cell || '').trim();
+            if (!v || blacklist.includes(v)) continue;
+            if (/^\d+\.0+$/.test(v)) v = v.replace(/\.0+$/, '');
+            if (!d.item_no) {
+                let digits = v.replace(/-/g, '');
+                if (v.includes('-') && /^\d+$/.test(digits) && digits.length > 10) d.item_no = v;
+                else if (/^\d+$/.test(v) && v.length > 6) d.item_no = v;
+            }
+            if (!d.name && /[a-zA-Z\u0600-\u06FF]/.test(v) && v.length > 2) d.name = v;
+        }
+        return d;
+    }
+
+    let pendingProductFiles = [];
+    document.getElementById('dbFileInput').addEventListener('change', (e) => { pendingProductFiles = Array.from(e.target.files); });
+    async function processProductFiles(skipBlacklist = false) {
+        if (!pendingProductFiles.length) { showToast("اختر ملفات أولاً", true); return; }
+        showProgress('رفع المنتجات...', 'جاري قراءة الملفات', 5);
+        const sourceId = Date.now();
+        let totalAdded = 0;
+        for (let fi = 0; fi < pendingProductFiles.length; fi++) {
+            const file = pendingProductFiles[fi];
+            try {
+                updateProgress(5 + (fi / pendingProductFiles.length) * 20, `قراءة: ${file.name}`);
+                const rows = await readExcelFile(file);
+                if (!rows || rows.length < 2) throw new Error("لا توجد بيانات كافية");
+                const blacklist = skipBlacklist ? [] : getCommonBlacklist(rows);
+                const dataRows = rows.slice(1);
+                const BATCH_SIZE = 150;
+                for (let start = 0; start < dataRows.length; start += BATCH_SIZE) {
+                    const pct = 25 + ((fi / pendingProductFiles.length) + ((start / dataRows.length) / pendingProductFiles.length)) * 70;
+                    updateProgress(pct, `معالجة ${Math.min(start + BATCH_SIZE, dataRows.length)} / ${dataRows.length}`);
+                    const batch = dataRows.slice(start, Math.min(start + BATCH_SIZE, dataRows.length));
+                    const tx = db.transaction(["products"], "readwrite");
+                    const store = tx.objectStore("products");
+                    for (const row of batch) {
+                        let d = parseProductRow(row, blacklist);
+                        if (d.item_no || d.barcode) {
+                            store.add({ id: generateUniqueId(), barcode: d.barcode || "", item_no: d.item_no || "", name: d.name || "بدون اسم", sourceId });
+                            totalAdded++;
+                        }
+                    }
+                    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+                    await new Promise(r => setTimeout(r, 10));
+                }
+            } catch (err) { hideProgress(); showToast(`خطأ في ${file.name}: ${err.message}`, true); return; }
+        }
+        const ftx = db.transaction("uploadedFiles", "readwrite");
+        ftx.objectStore("uploadedFiles").add({ names: pendingProductFiles.map(f => f.name).join(', '), count: totalAdded, sourceId });
+        await new Promise(r => { ftx.oncomplete = r; });
+        hideProgress();
+        showToast(`✅ تم رفع ${totalAdded} منتج`);
+        pendingProductFiles = [];
+        updateAllUI();
+    }
+    document.getElementById('processDbBtn').onclick = () => processProductFiles(false);
+    document.getElementById('processDbNoFilterBtn').onclick = () => processProductFiles(true);
+
+    let pendingStockFiles = [];
+    document.getElementById('stockFileInput').addEventListener('change', (e) => { pendingStockFiles = Array.from(e.target.files); });
+    async function processStockFiles() {
+        if (!pendingStockFiles.length) { showToast("اختر ملف المرجع أولاً", true); return; }
+        showProgress('رفع المرجع...', 'جاري القراءة', 5);
+        const mode = document.getElementById('stockModeSelect').value;
+        if (mode === 'replace') {
+            updateProgress(10, 'مسح البيانات القديمة...');
+            const clearTx = db.transaction("stock", "readwrite");
+            clearTx.objectStore("stock").clear();
+            await new Promise(r => { clearTx.oncomplete = r; });
+        }
+        for (let fi = 0; fi < pendingStockFiles.length; fi++) {
+            const file = pendingStockFiles[fi];
+            updateProgress(15 + (fi / pendingStockFiles.length) * 15, `قراءة: ${file.name}`);
+            const rows = await readExcelFile(file);
+            let qtyCol = undefined;
+            if (rows[0]) for (let i = 0; i < rows[0].length; i++) if (String(rows[0][i]).trim() === "الفعلي النهائي") qtyCol = i;
+            if (qtyCol === undefined && rows[0]) for (let i = 0; i < rows[0].length; i++) if (String(rows[0][i]).trim() === "كمية التحويل") qtyCol = i;
+            const blacklist = getCommonBlacklist(rows);
+            const dataRows = rows.slice(1);
+            const totalBatches = Math.ceil(dataRows.length / 200);
+            for (let bi = 0, start = 0; start < dataRows.length; start += 200, bi++) {
+                const pct = 30 + ((fi / pendingStockFiles.length) + (bi / totalBatches / pendingStockFiles.length)) * 65;
+                updateProgress(pct, `معالجة ${Math.min(start + 200, dataRows.length)} / ${dataRows.length}`);
+                const batch = dataRows.slice(start, start + 200);
+                const tx = db.transaction("stock", "readwrite");
+                const store = tx.objectStore("stock");
+                for (const row of batch) {
+                    let d = parseStockRow(row, blacklist, qtyCol);
+                    if (!d.item_no) continue;
+                    if (mode === 'merge') {
+                        const existing = await new Promise(r => store.get(d.item_no).onsuccess = e => r(e.target.result));
+                        store.put({ key: d.item_no, name: d.name || existing?.name || '', qty: (existing ? existing.qty : 0) + d.qty });
+                    } else {
+                        store.put({ key: d.item_no, name: d.name, qty: d.qty });
+                    }
+                }
+                await new Promise(r => { tx.oncomplete = r; });
+                await new Promise(r => setTimeout(r, 10));
+            }
+        }
+        hideProgress();
+        showToast("تم تحديث المرجع");
+        pendingStockFiles = [];
+        updateAllUI();
+    }
+    document.getElementById('processStockBtn').onclick = processStockFiles;
+
+    // تعديل addToInventory لتخزين timestamp
+    async function addToInventory(itemCode, productName, barcode = '') {
+        const now = Date.now();
+        // أ) تحديث السجل المجمّع (inventory)
+        await new Promise((resolve) => {
+            const tx = db.transaction("inventory", "readwrite");
+            const store = tx.objectStore("inventory");
+            const key = itemCode;
+            const getReq = store.get(key);
+            getReq.onsuccess = () => {
+                let existing = getReq.result;
+                if (existing) { existing.qty++; existing.timestamp = now; store.put(existing); }
+                else { store.put({ key, name: productName, qty: 1, barcode, item_no: itemCode, timestamp: now }); }
+                tx.oncomplete = () => resolve(true);
+                tx.onerror   = () => resolve(false);
+            };
+            getReq.onerror = () => resolve(false);
+        });
+        // ب) إضافة سطر في السجل التفصيلي (scanLog) — كل مسحة بسطر مستقل
+        await new Promise((resolve) => {
+            const tx = db.transaction("scanLog", "readwrite");
+            tx.objectStore("scanLog").add({ itemCode, name: productName, barcode, timestamp: now });
+            tx.oncomplete = () => resolve();
+            tx.onerror    = () => resolve();
+        });
+    }
+
+    // ── منطق المسح المحسّن ──
+    async function lookupAndAdd(rawVal) {
+        const cleanVal = sanitizeBarcode(rawVal);
+        if (!cleanVal) { showToast('⚠️ كود غير صالح', true, 1500); return; }
+        const now = Date.now();
+
+        if (isScanLocked) { setScanStatus('locked', 'جاري المعالجة...'); return; }
+
+        const elapsed = now - lastScanTime;
+        if (elapsed < scanDelay) {
+            setScanStatus('locked', `انتظر ${((scanDelay - elapsed)/1000).toFixed(1)}s`);
+            return;
+        }
+
+        isScanLocked = true;
+        lastScanTime = now;
+        setScanStatus('scanning', `جاري البحث: ${cleanVal}`);
+
+        const infoEl = document.getElementById('lastScanInfo');
+        if (infoEl) infoEl.textContent = `آخر مسح: ${new Date().toLocaleTimeString('ar-SA')}`;
+
+        try {
+            const tx = db.transaction(["products", "stock"], "readonly");
+            const products = await new Promise(r => tx.objectStore("products").getAll().onsuccess = e => r(e.target.result));
+            let match = products.find(p => p.barcode === cleanVal || p.item_no === cleanVal);
+            if (match) {
+                await addToInventory(match.item_no || match.barcode, match.name, match.barcode);
+                playBeep(true); flashCard('green');
+                showToast(`✓ ${match.name}`, false, 1200);
+                setScanStatus('ready', `✓ تم جرد: ${match.name}`);
+                updateAllUI(); isScanLocked = false; return;
+            }
+            const stockStore = tx.objectStore("stock");
+            const stockItem = await new Promise(r => stockStore.get(cleanVal).onsuccess = e => r(e.target.result));
+            if (stockItem) {
+                const addTx = db.transaction(["products"], "readwrite");
+                addTx.objectStore("products").add({ id: generateUniqueId(), barcode: cleanVal, item_no: stockItem.key, name: stockItem.name, sourceId: "auto" });
+                await new Promise(r => { addTx.oncomplete = r; });
+                await addToInventory(stockItem.key, stockItem.name, cleanVal);
+                playBeep(true); flashCard('green');
+                showToast(`✓ إضافة تلقائية: ${stockItem.name}`, false, 1500);
+                setScanStatus('ready', `✓ ${stockItem.name}`);
+                updateAllUI(); isScanLocked = false; return;
+            }
+            await addToInventory(cleanVal, "❓ غير معروف", cleanVal);
+            playBeep(false); flashCard('red');
+            showToast(`⚠️ غير مسجل — تم تسجيله: ${cleanVal}`, true, 2000);
+            setScanStatus('idle', `⚠️ غير معروف: ${cleanVal}`);
+            updateAllUI();
+        } catch (err) {
+            console.error(err);
+            setScanStatus('idle', 'خطأ في المعالجة');
+        }
+        isScanLocked = false;
+    }
+
+    document.getElementById('barcodeInput').addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            let val = document.getElementById('barcodeInput').value.trim();
+            if (val) {
+                lastScanTime = 0; // الإدخال اليدوي يتجاوز التأخير
+                // إعادة ضبط التأكيد المزدوج للإدخال اليدوي
+                clearTimeout(pendingTimer); pendingCode = null; pendingCount = 0;
+                await lookupAndAdd(val);
+                document.getElementById('barcodeInput').value = '';
+            }
+        }
+    });
+    document.getElementById('addOneBtn').onclick = async () => {
+        let raw = document.getElementById('barcodeInput').value.trim();
+        if (!raw) { showToast("ادخل باركود أو رقم صنف", true); return; }
+        lastScanTime = 0; // تجاوز التأخير للإدخال اليدوي
+        await lookupAndAdd(raw.replace(/\.0+$/, '').trim());
+        document.getElementById('barcodeInput').value = '';
+    };
+    document.getElementById('resetInventoryBtn').onclick = () => {
+        if (confirm("مسح كل الجرد والسجل التفصيلي؟")) {
+            const tx1 = db.transaction("inventory", "readwrite"); tx1.objectStore("inventory").clear();
+            const tx2 = db.transaction("scanLog",   "readwrite"); tx2.objectStore("scanLog").clear();
+            Promise.all([
+                new Promise(r => { tx1.oncomplete = r; }),
+                new Promise(r => { tx2.oncomplete = r; })
+            ]).then(() => { updateAllUI(); showToast("تم مسح الجرد والسجل"); });
+        }
+    };
+
+    // ── كاميرا محسّنة ──
+    async function listCameras() {
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            availableCameras = devices;
+            const select = document.getElementById('cameraSelect');
+            select.innerHTML = '<option value="">اختر الكاميرا</option>';
+            devices.forEach((device, idx) => {
+                const option = document.createElement('option');
+                option.value = device.id;
+                option.textContent = device.label || `كاميرا ${idx + 1}`;
+                select.appendChild(option);
+            });
+            if (devices.length > 0) {
+                // تفضيل الكاميرا الخلفية
+                let selectedCam = devices.find(d =>
+                    /back|rear|خلفية|environment/i.test(d.label)
+                ) || devices[devices.length - 1]; // آخر كاميرا غالباً هي الخلفية
+                currentCameraId = selectedCam.id;
+                select.value = currentCameraId;
+            }
+            // تحديث select عند التغيير
+            select.onchange = () => { currentCameraId = select.value; };
+        } catch (err) { console.warn(err); }
+    }
+
+    async function startCamera(cameraId = null) {
+        if (html5QrScanner) { await html5QrScanner.stop().catch(() => {}); html5QrScanner = null; }
+        scanningActive = false;
+        const cameraDiv = document.getElementById('cameraDiv');
+        const scanLine = document.getElementById('scanLine');
+        cameraDiv.classList.remove('hidden');
+        setScanStatus('scanning', 'جاري تشغيل الكاميرا...');
+        try {
+            const targetId = cameraId || currentCameraId || (availableCameras[0]?.id);
+            if (!targetId) throw new Error("لا توجد كاميرا متاحة");
+            html5QrScanner = new Html5Qrcode("reader2");
+            await html5QrScanner.start(
+                { deviceId: { exact: targetId } },
+                {
+                    fps: 15,                        // أسرع من 10
+                    qrbox: { width: 260, height: 180 },
+                    aspectRatio: 1.5,
+                    disableFlip: false,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats?.QR_CODE,
+                        Html5QrcodeSupportedFormats?.CODE_128,
+                        Html5QrcodeSupportedFormats?.CODE_39,
+                        Html5QrcodeSupportedFormats?.EAN_13,
+                        Html5QrcodeSupportedFormats?.EAN_8,
+                        Html5QrcodeSupportedFormats?.UPC_A,
+                    ].filter(Boolean)
+                },
+                async (decoded) => {
+                    onCameraScan(decoded);
+                    // عرض الكود المقروء في الحقل للمراجعة
+                    const code = sanitizeBarcode(decoded);
+                    if (code) document.getElementById('barcodeInput').value = code;
+                },
+                () => {} // خطأ مسح عادي، تجاهل
+            );
+            scanningActive = true;
+            currentCameraId = targetId;
+            if (scanLine) scanLine.style.display = 'block';
+            setScanStatus('ready', 'الكاميرا نشطة — وجّه الباركود');
+            initAudio();
+        } catch (err) {
+            showToast("خطأ في الكاميرا: " + err.message, true);
+            cameraDiv.classList.add('hidden');
+            if (scanLine) scanLine.style.display = 'none';
+            setScanStatus('idle', 'فشل تشغيل الكاميرا');
+            scanningActive = false;
+        }
+    }
+
+    async function closeCamera() {
+        if (html5QrScanner) { await html5QrScanner.stop().catch(() => {}); html5QrScanner = null; }
+        scanningActive = false;
+        document.getElementById('cameraDiv').classList.add('hidden');
+        const scanLine = document.getElementById('scanLine');
+        if (scanLine) scanLine.style.display = 'none';
+        setScanStatus('idle', 'جاهز للمسح');
+    }
+
+    async function switchCamera() {
+        if (!availableCameras.length) await listCameras();
+        if (availableCameras.length < 2) { showToast("لا توجد كاميرا أخرى متاحة", true); return; }
+        const currentIndex = availableCameras.findIndex(c => c.id === currentCameraId);
+        const nextIndex = (currentIndex + 1) % availableCameras.length;
+        const nextCam = availableCameras[nextIndex];
+        document.getElementById('cameraSelect').value = nextCam.id;
+        await startCamera(nextCam.id);
+    }
+
+    document.getElementById('startCamBtn').onclick = async () => {
+        initAudio();
+        if (!availableCameras.length) await listCameras();
+        const selected = document.getElementById('cameraSelect').value;
+        const targetId = selected || currentCameraId || (availableCameras[0]?.id);
+        if (targetId) await startCamera(targetId);
+        else showToast("لا توجد كاميرا", true);
+    };
+    document.getElementById('switchCamBtn').onclick = switchCamera;
+    document.getElementById('closeCamBtn').onclick = closeCamera;
+
+    async function updateAllUI() {
+        if (!db) return;
+        const stores = ["inventory", "products", "stock", "scanLog"];
+        const tx = db.transaction(stores, "readonly");
+        const invRaw  = await new Promise(r => tx.objectStore("inventory").getAll().onsuccess = e => r(e.target.result));
+        const prods   = await new Promise(r => tx.objectStore("products").getAll().onsuccess  = e => r(e.target.result));
+        const stock   = await new Promise(r => tx.objectStore("stock").getAll().onsuccess     = e => r(e.target.result));
+        const logRaw  = await new Promise(r => tx.objectStore("scanLog").getAll().onsuccess   = e => r(e.target.result));
+
+        inventory = invRaw.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        // السجل التفصيلي — تنازلي (الأحدث أولاً)
+        const scanLog = logRaw.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        document.getElementById('inventoryCount').innerText = scanLog.length;
+        document.getElementById('totalProductsStat').innerText = prods.length;
+        document.getElementById('totalInventoryStat').innerText = inventory.length;
+        document.getElementById('sessionScansStat').innerText = scanLog.length;
+
+        // ── تبويب المسح: سجل تفصيلي (كل مسحة = سطر فردي) ──
+        let logHtml = '';
+        scanLog.forEach((entry, idx) => {
+            const rowNum  = scanLog.length - idx;
+            const timeStr = entry.timestamp
+                ? new Date(entry.timestamp).toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit', second:'2-digit' })
+                : '';
+            const invItem   = inventory.find(x => x.key === entry.itemCode);
+            const currentQty = invItem ? invItem.qty : 0;
+            const nameEsc   = escapeHtml(entry.name).replace(/'/g,"\\'");
+            const barcodeEsc = (entry.barcode||'').replace(/'/g,"\\'");
+
+            logHtml += `
+            <div id="scanrow-${entry.id}" style="
+                border-radius:14px; margin-bottom:9px; overflow:hidden;
+                background:var(--surface2); border:1px solid var(--border);
+                box-shadow:0 4px 14px rgba(0,0,0,0.22);">
+
+                <!-- الصف العلوي: رقم + اسم + وقت -->
+                <div style="display:flex; align-items:center; gap:9px; padding:11px 12px 8px;">
+
+                    <div style="min-width:26px; height:26px; border-radius:7px; flex-shrink:0;
+                        background:linear-gradient(135deg,rgba(0,212,170,0.15),rgba(0,150,255,0.08));
+                        border:1px solid rgba(0,212,170,0.22);
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:0.68rem; font-weight:900; color:var(--accent); font-family:'Tajawal',sans-serif;">
+                        ${rowNum}
+                    </div>
+
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:0.84rem; font-weight:700; color:var(--text);
+                            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${escapeHtml(entry.name)}
+                        </div>
+                        <div style="font-size:0.62rem; color:var(--text-muted); margin-top:2px; display:flex; gap:6px; align-items:center;">
+                            <span>${escapeHtml(entry.itemCode)}</span>
+                            <span style="color:var(--text-dim);">•</span>
+                            <span style="color:var(--text-dim);">${timeStr}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- شريط الأزرار السفلي -->
+                <div style="display:flex; gap:0; border-top:1px solid rgba(255,255,255,0.05);">
+
+                    <!-- ➖ نقص -->
+                    <button onclick="window.logRowAction('minus','${entry.itemCode}',${entry.id},'${nameEsc}','${barcodeEsc}')"
+                        title="نقص مسحة"
+                        style="flex:1; border:none; padding:9px 4px; cursor:pointer; font-family:'Cairo',sans-serif;
+                            background:linear-gradient(145deg,#2a0d0d,#190707);
+                            color:#ff6b6b; font-size:0.72rem; font-weight:700;
+                            display:flex; align-items:center; justify-content:center; gap:4px;
+                            border-left:1px solid rgba(255,255,255,0.04); transition:opacity 0.12s;">
+                        <i class="fas fa-minus" style="font-size:0.62rem;"></i> نقص
+                    </button>
+
+                    <!-- ✏️ تعديل الكمية -->
+                    <button onclick="window.logRowAction('edit','${entry.itemCode}',${entry.id},'${nameEsc}','${barcodeEsc}',${currentQty})"
+                        title="تعديل الكمية"
+                        style="flex:1.3; border:none; padding:9px 4px; cursor:pointer; font-family:'Cairo',sans-serif;
+                            background:linear-gradient(145deg,#1a1d28,#111420);
+                            color:#94a3b8; font-size:0.72rem; font-weight:700;
+                            display:flex; align-items:center; justify-content:center; gap:4px;
+                            border-left:1px solid rgba(255,255,255,0.04); transition:opacity 0.12s;">
+                        <i class="fas fa-pen" style="font-size:0.6rem;"></i> تعديل
+                    </button>
+
+                    <!-- ➕ زيادة -->
+                    <button onclick="window.logRowAction('plus','${entry.itemCode}',${entry.id},'${nameEsc}','${barcodeEsc}')"
+                        title="زيادة مسحة"
+                        style="flex:1; border:none; padding:9px 4px; cursor:pointer; font-family:'Cairo',sans-serif;
+                            background:linear-gradient(145deg,#0c2a1d,#071410);
+                            color:#00d4aa; font-size:0.72rem; font-weight:700;
+                            display:flex; align-items:center; justify-content:center; gap:4px;
+                            border-left:1px solid rgba(255,255,255,0.04); transition:opacity 0.12s;">
+                        <i class="fas fa-plus" style="font-size:0.62rem;"></i> زيادة
+                    </button>
+
+                    <!-- 🗑️ حذف -->
+                    <button onclick="window.logRowAction('delete','${entry.itemCode}',${entry.id},'${nameEsc}','${barcodeEsc}')"
+                        title="حذف المسحة"
+                        style="flex:0.7; border:none; padding:9px 4px; cursor:pointer; font-family:'Cairo',sans-serif;
+                            background:linear-gradient(145deg,#1c1220,#120b16);
+                            color:#6b4f88; font-size:0.72rem; font-weight:700;
+                            display:flex; align-items:center; justify-content:center;
+                            transition:opacity 0.12s;">
+                        <i class="fas fa-trash-alt" style="font-size:0.62rem;"></i>
+                    </button>
+                </div>
+            </div>`;
+        });
+        document.getElementById('inventoryListContainer').innerHTML = logHtml ||
+            `<div style="text-align:center; padding:40px 20px; color:var(--text-dim);">
+                <i class="fas fa-barcode" style="font-size:2rem; margin-bottom:10px; display:block; opacity:0.3;"></i>
+                لا توجد مسحات بعد
+            </div>`;
+
+        // ── تبويب الجرد: مجمّع كما هو ──
+        document.getElementById('inventoryFullTable').innerHTML = `<table class="data-table">
+            <thead><th>الباركود</th><th>رقم الصنف</th><th>الاسم</th><th>الكمية</th><th>آخر مسح</th></thead>
+            <tbody>${inventory.map(i => `<tr>
+                <td style="font-size:0.72rem; color:var(--text-muted);">${escapeHtml(i.barcode && i.barcode !== i.key ? i.barcode : '')}</td>
+                <td>${escapeHtml(i.key)}</td>
+                <td>${escapeHtml(i.name)}</td>
+                <td><strong style="color:var(--accent)">${i.qty}</strong></td>
+                <td style="font-size:0.7rem; color:var(--text-muted)">${i.timestamp ? new Date(i.timestamp).toLocaleTimeString('ar-SA') : '-'}</td>
+            </tr>`).join('')}</tbody></table>`;
+
+        document.getElementById('stockTableContainer').innerHTML = `<table class="data-table"><thead><th>رقم الصنف</th><th>الاسم</th><th>الكمية المرجعية</th></thead><tbody>${stock.map(s => `<tr><td>${escapeHtml(s.key)}</td><td>${escapeHtml(s.name)}</td><td>${s.qty}</td></tr>`).join('')}</tbody></table>`;
+
+        const allCodes = new Set([...inventory.map(i => i.key), ...stock.map(s => s.key)]);
+        let cmpRows = [...allCodes].map(k => {
+            let i = inventory.find(x => x.key === k), s = stock.find(x => x.key === k);
+            let qi = i ? i.qty : 0, qs = s ? s.qty : 0, diff = qi - qs;
+            // الباركود: من inventory أو من products (أيهما يجد قيمة مختلفة عن رقم الصنف)
+            const fromInv  = i?.barcode && i.barcode !== k ? i.barcode : '';
+            const fromProd = prods.find(p => p.item_no === k || p.barcode === k);
+            const bc = fromInv || (fromProd?.barcode && fromProd.barcode !== k ? fromProd.barcode : '');
+            return { itemNo: (i||s)?.item_no||k, barcode: bc, name: (i||s)?.name||'', qs, qi, diff };
+        });
+        let filter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+        let filtered = cmpRows;
+        if (filter === 'increase') filtered = filtered.filter(r => r.diff > 0);
+        else if (filter === 'decrease') filtered = filtered.filter(r => r.diff < 0);
+        else if (filter === 'match') filtered = filtered.filter(r => r.diff === 0);
+        else if (filter === 'scanned') filtered = filtered.filter(r => r.qi > 0); // ما تم جرده فقط (له كمية مجرودة)
+
+        document.getElementById('statsActualItems').innerText = stock.length;
+        document.getElementById('statsIncreaseCount').innerText = cmpRows.filter(r => r.diff > 0).length;
+        document.getElementById('statsDecreaseCount').innerText = cmpRows.filter(r => r.diff < 0).length;
+        document.getElementById('statsMatchCount').innerText = cmpRows.filter(r => r.diff === 0).length;
+        document.getElementById('statsScannedCount').innerText = inventory.length;
+        document.getElementById('statsTotalDiff').innerText = filtered.reduce((a, b) => a + b.diff, 0);
+
+        document.getElementById('comparisonTableDiv').innerHTML = `<table class="data-table"><thead><th>الباركود</th><th>رقم الصنف</th><th>الاسم</th><th>الفعلي</th><th>المجرد</th><th>الفرق</th></thead><tbody>${filtered.map(r => {
+            const isPos  = r.diff > 0, isNeg = r.diff < 0, isZero = r.diff === 0 && r.qi > 0;
+            const rowBg  = isPos  ? 'rgba(0,180,100,0.09)'   : isNeg  ? 'rgba(220,60,60,0.09)'  : isZero ? 'rgba(0,120,220,0.09)'  : '';
+            const rowBdr = isPos  ? 'rgba(0,200,120,0.18)'   : isNeg  ? 'rgba(220,60,60,0.18)'  : isZero ? 'rgba(0,120,220,0.18)' : 'transparent';
+            const numClr = isPos  ? '#00d4aa' : isNeg ? '#ff6b6b' : isZero ? '#38bdf8' : 'var(--text)';
+            const icon   = isPos  ? '⬆' : isNeg ? '⬇' : isZero ? '✓' : '—';
+            const diffTxt = (r.diff > 0 ? '+' : '') + r.diff;
+            return `<tr style="background:${rowBg}; border-bottom:1px solid ${rowBdr};">
+                <td style="font-size:0.7rem; color:${numClr}; opacity:0.8;">${escapeHtml(r.barcode)}</td>
+                <td style="color:${numClr}; font-weight:600;">${escapeHtml(r.itemNo)}</td>
+                <td style="color:${numClr}; font-weight:600;">${escapeHtml(r.name)}</td>
+                <td style="color:var(--text-muted);">${r.qs}</td>
+                <td style="color:var(--text-muted);">${r.qi}</td>
+                <td style="font-weight:800; color:${numClr}; font-size:0.9rem; letter-spacing:0.5px;">${icon} ${diffTxt}</td>
+            </tr>`;
+        }).join('')}</tbody></table>`;
+
+        document.getElementById('productsTableContainer').innerHTML = `<table class="data-table"><thead><th>الباركود</th><th>رقم الصنف</th><th>الاسم</th><th></th></thead><tbody>${prods.map(p => `<tr><td style="font-size:0.72rem; color:var(--text-muted);">${escapeHtml(p.barcode||'-')}</td><td>${escapeHtml(p.item_no||'-')}</td><td>${escapeHtml(p.name||'-')}</td><td><button class="icon-btn" onclick="window.deleteProductById(${p.id})">حذف</button></td></tr>`).join('')}</tbody></table>`;
+    }
+
+    // دوال التعديل
+    window.updateQuantity = async function(key, delta) {
+        const tx = db.transaction("inventory", "readwrite"); const store = tx.objectStore("inventory");
+        const item = await new Promise(r => store.get(key).onsuccess = e => r(e.target.result));
+        if (item) {
+            item.qty = Math.max(0, item.qty + delta);
+            item.timestamp = Date.now(); // تحديث الوقت
+            store.put(item);
+            await new Promise(r => { tx.oncomplete = r; });
+            updateAllUI();
+        }
+    };
+    window.editQty = async function(key, currentQty) {
+        const newQtyStr = prompt(`الكمية الحالية: ${currentQty}\nأدخل الكمية الجديدة:`, currentQty);
+        if (newQtyStr === null) return;
+        const newQty = parseInt(newQtyStr);
+        if (isNaN(newQty) || newQty < 0) { showToast('كمية غير صالحة', true); return; }
+        const tx = db.transaction("inventory", "readwrite"); const store = tx.objectStore("inventory");
+        const item = await new Promise(r => store.get(key).onsuccess = e => r(e.target.result));
+        if (item) {
+            item.qty = newQty;
+            item.timestamp = Date.now();
+            store.put(item);
+            await new Promise(r => { tx.oncomplete = r; });
+            updateAllUI();
+        }
+    };
+    window.deleteItem = async function(key) {
+        if (!confirm("حذف العنصر؟")) return;
+        const tx = db.transaction("inventory", "readwrite"); tx.objectStore("inventory").delete(key);
+        await new Promise(r => { tx.oncomplete = r; }); updateAllUI();
+    };
+
+    // ── أزرار بطاقة السجل التفصيلي ──
+    // ── حذف الصنف من inventory وscanLog إذا وصلت الكمية صفر ──
+    async function removeIfZero(itemCode) {
+        const item = await new Promise(r => {
+            const tx = db.transaction("inventory", "readonly");
+            tx.objectStore("inventory").get(itemCode).onsuccess = e => r(e.target.result);
+        });
+        if (!item || item.qty > 0) return; // لا تحذف إذا الكمية أكبر من صفر
+        // احذف من inventory
+        await new Promise(r => {
+            const tx = db.transaction("inventory", "readwrite");
+            tx.objectStore("inventory").delete(itemCode);
+            tx.oncomplete = r;
+        });
+        // احذف كل سطوره من scanLog
+        const allLogs = await new Promise(r => {
+            const tx = db.transaction("scanLog", "readonly");
+            tx.objectStore("scanLog").getAll().onsuccess = e => r(e.target.result);
+        });
+        const toDelete = allLogs.filter(l => l.itemCode === itemCode);
+        if (toDelete.length) {
+            await new Promise(r => {
+                const tx = db.transaction("scanLog", "readwrite");
+                toDelete.forEach(l => tx.objectStore("scanLog").delete(l.id));
+                tx.oncomplete = r;
+            });
+        }
+    }
+
+    // ── أزرار السجل التفصيلي ──
+    window.logRowAction = async function(action, itemCode, logId, name, barcode, currentQty) {
+
+        // ── زيادة: أضف سطر جديد في scanLog + زد 1 في inventory ──
+        if (action === 'plus') {
+            const now = Date.now();
+            // إضافة سطر جديد للسجل
+            await new Promise(r => {
+                const tx = db.transaction("scanLog", "readwrite");
+                tx.objectStore("scanLog").add({ itemCode, name, barcode: barcode||'', timestamp: now });
+                tx.oncomplete = r;
+            });
+            // زيادة الكمية المجمّعة
+            await new Promise(r => {
+                const tx = db.transaction("inventory", "readwrite");
+                const store = tx.objectStore("inventory");
+                store.get(itemCode).onsuccess = e => {
+                    const item = e.target.result;
+                    if (item) { item.qty++; item.timestamp = now; store.put(item); }
+                    else { store.put({ key: itemCode, name, qty: 1, barcode: barcode||'', item_no: itemCode, timestamp: now }); }
+                    tx.oncomplete = r;
+                };
+            });
+            playBeep(true);
+            updateAllUI(); return;
+        }
+
+        // ── نقص: احذف آخر سطر لنفس الباركود من scanLog + انقص 1 من inventory ──
+        if (action === 'minus') {
+            // ابحث عن آخر سطر لنفس itemCode في scanLog
+            const allLogs = await new Promise(r => {
+                const tx = db.transaction("scanLog", "readonly");
+                tx.objectStore("scanLog").getAll().onsuccess = e => r(e.target.result);
+            });
+            const sameLogs = allLogs.filter(l => l.itemCode === itemCode).sort((a,b) => b.timestamp - a.timestamp);
+            if (!sameLogs.length) { showToast('لا يوجد سطر لحذفه', true); return; }
+            const lastLog = sameLogs[0];
+            // احذف آخر سطر
+            await new Promise(r => {
+                const tx = db.transaction("scanLog", "readwrite");
+                tx.objectStore("scanLog").delete(lastLog.id);
+                tx.oncomplete = r;
+            });
+            // انقص 1 من inventory
+            await new Promise(r => {
+                const tx = db.transaction("inventory", "readwrite");
+                const store = tx.objectStore("inventory");
+                store.get(itemCode).onsuccess = e => {
+                    const item = e.target.result;
+                    if (item && item.qty > 0) { item.qty--; item.timestamp = Date.now(); store.put(item); }
+                    tx.oncomplete = r;
+                };
+            });
+            await removeIfZero(itemCode);
+            playBeep(false);
+            updateAllUI(); return;
+        }
+
+        // ── حذف: احذف هذا السطر بالذات + انقص 1 من inventory ──
+        if (action === 'delete') {
+            if (!confirm('حذف هذه المسحة وطرح 1 من الجرد؟')) return;
+            await new Promise(r => {
+                const tx = db.transaction("scanLog", "readwrite");
+                tx.objectStore("scanLog").delete(logId);
+                tx.oncomplete = r;
+            });
+            await new Promise(r => {
+                const tx = db.transaction("inventory", "readwrite");
+                const store = tx.objectStore("inventory");
+                store.get(itemCode).onsuccess = e => {
+                    const item = e.target.result;
+                    if (item && item.qty > 0) { item.qty--; item.timestamp = Date.now(); store.put(item); }
+                    tx.oncomplete = r;
+                };
+            });
+            await removeIfZero(itemCode);
+            updateAllUI(); return;
+        }
+
+        // ── تعديل الكمية مباشرة ──
+        if (action === 'edit') {
+            const newQtyStr = prompt(`الكمية الحالية: ${currentQty}\nأدخل الكمية الجديدة:`, currentQty);
+            if (newQtyStr === null) return;
+            const newQty = parseInt(newQtyStr);
+            if (isNaN(newQty) || newQty < 0) { showToast('كمية غير صالحة', true); return; }
+            const diff = newQty - currentQty; // الفرق
+            if (diff === 0) return;
+            const now = Date.now();
+            // أضف/احذف سطور من scanLog بقدر الفرق
+            if (diff > 0) {
+                await new Promise(r => {
+                    const tx = db.transaction("scanLog", "readwrite");
+                    for (let i = 0; i < diff; i++)
+                        tx.objectStore("scanLog").add({ itemCode, name, barcode: barcode||'', timestamp: now + i });
+                    tx.oncomplete = r;
+                });
+            } else {
+                // احذف |diff| سطر من الأحدث
+                const allLogs = await new Promise(r => {
+                    const tx = db.transaction("scanLog", "readonly");
+                    tx.objectStore("scanLog").getAll().onsuccess = e => r(e.target.result);
+                });
+                const toDelete = allLogs.filter(l => l.itemCode === itemCode)
+                    .sort((a,b) => b.timestamp - a.timestamp)
+                    .slice(0, Math.abs(diff));
+                await new Promise(r => {
+                    const tx = db.transaction("scanLog", "readwrite");
+                    toDelete.forEach(l => tx.objectStore("scanLog").delete(l.id));
+                    tx.oncomplete = r;
+                });
+            }
+            // حدّث inventory
+            await new Promise(r => {
+                const tx = db.transaction("inventory", "readwrite");
+                const store = tx.objectStore("inventory");
+                store.get(itemCode).onsuccess = e => {
+                    const item = e.target.result;
+                    if (item) { item.qty = Math.max(0, newQty); item.timestamp = now; store.put(item); }
+                    tx.oncomplete = r;
+                };
+            });
+            await removeIfZero(itemCode);
+            updateAllUI(); return;
+        }
+    };
+    window.deleteProductById = async function(id) {
+        if (!confirm("حذف المنتج؟")) return;
+        const tx = db.transaction("products", "readwrite"); tx.objectStore("products").delete(id);
+        await new Promise(r => { tx.oncomplete = r; }); updateAllUI();
+    };
+
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active'); updateAllUI();
+    }));
+
+    // ── تصدير متوافق مع Apps Geyser ──
+    // بدون: download attribute, window.open, Blob URL, createObjectURL
+    // الحل: iframe مخفي + data URL مباشرة يُحفظ في Downloads تلقائياً
+    async function downloadFile(blobOrBuffer, fileName, mimeType) {
+        try {
+            const blob = blobOrBuffer instanceof Blob
+                ? blobOrBuffer
+                : new Blob([blobOrBuffer], { type: mimeType });
+
+            // تحويل إلى base64
+            const dataUrl = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+
+            // طريقة 1: iframe مخفي — يُطلق التنزيل بدون مغادرة الصفحة
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'display:none; width:0; height:0; border:none;';
+            document.body.appendChild(iframe);
+            iframe.src = dataUrl;
+            setTimeout(() => iframe.remove(), 3000);
+
+            showToast('✓ تم الحفظ في مجلد التنزيلات', false, 3000);
+
+        } catch(e) {
+            console.error('downloadFile:', e);
+            showToast('خطأ في التصدير', true);
+        }
+    }
+
+    function exportToExcel(data, sheetName, fileName) {
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+        downloadFile(buf, `${fileName}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    document.getElementById('exportInventoryBtn').onclick = () => {
+        showProgress('تصدير الجرد...', 'جاري تجميع البيانات', 20);
+        const tx = db.transaction("inventory", "readonly");
+        tx.objectStore("inventory").getAll().onsuccess = e => {
+            updateProgress(70, 'إنشاء الملف...');
+            let inv = e.target.result.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+            exportToExcel(inv.map(i => ({ "رقم الصنف": i.key, "الاسم": i.name, "الكمية": i.qty, "الوقت": i.timestamp ? new Date(i.timestamp).toLocaleString('ar-SA') : '' })), "الجرد", "جرد_"+Date.now());
+            hideProgress();
+        };
+    };
+    document.getElementById('exportStockBtn').onclick = () => {
+        showProgress('تصدير المرجع...', 'جاري تجميع البيانات', 20);
+        const tx = db.transaction("stock", "readonly");
+        tx.objectStore("stock").getAll().onsuccess = e => {
+            updateProgress(70, 'إنشاء الملف...');
+            exportToExcel(e.target.result.map(s => ({ "رقم الصنف": s.key, "الاسم": s.name, "الكمية المرجعية": s.qty })), "المرجع", "مرجع_"+Date.now());
+            hideProgress();
+        };
+    };
+    document.getElementById('exportProductsBtn').onclick = () => {
+        showProgress('تصدير المنتجات...', 'جاري تجميع البيانات', 20);
+        const tx = db.transaction("products", "readonly");
+        tx.objectStore("products").getAll().onsuccess = e => {
+            updateProgress(70, 'إنشاء الملف...');
+            exportToExcel(e.target.result.map(p => ({ "الباركود": p.barcode||'', "رقم الصنف": p.item_no||'', "الاسم": p.name||'' })), "المنتجات", "منتجات_"+Date.now());
+            hideProgress();
+        };
+    };
+    document.getElementById('exportCompareBtn').onclick = () => {
+        showProgress('تصدير المقارنة...', 'جاري تجميع البيانات', 10);
+        const tx = db.transaction(["inventory","stock","products"], "readonly");
+        Promise.all([
+            new Promise(r => tx.objectStore("inventory").getAll().onsuccess = e => r(e.target.result)),
+            new Promise(r => tx.objectStore("stock").getAll().onsuccess     = e => r(e.target.result)),
+            new Promise(r => tx.objectStore("products").getAll().onsuccess  = e => r(e.target.result))
+        ]).then(async ([inv, stock, prods]) => {
+            updateProgress(25, 'بناء بيانات المقارنة...');
+            const allKeys = new Set([...inv.map(i => i.key), ...stock.map(s => s.key)]);
+            const rows = [...allKeys].map(k => {
+                const i = inv.find(x => x.key === k), s = stock.find(x => x.key === k);
+                const qi = i ? i.qty : 0, qs = s ? s.qty : 0, diff = qi - qs;
+                const fromInv  = i?.barcode && i.barcode !== k ? i.barcode : '';
+                const fromProd = prods.find(p => p.item_no === k || p.barcode === k);
+                const bc = fromInv || (fromProd?.barcode && fromProd.barcode !== k ? fromProd.barcode : '');
+                return { bc, k, name: (i||s)?.name||'', qs, qi, diff };
+            });
+
+            updateProgress(50, 'إنشاء ورقة العمل...');
+            const wb  = new ExcelJS.Workbook();
+            const ws  = wb.addWorksheet('المقارنة', { views:[{ rightToLeft: true }] });
+
+            // رؤوس الأعمدة
+            ws.columns = [
+                { header:'الباركود',  key:'bc',   width:20 },
+                { header:'رقم الصنف', key:'k',    width:18 },
+                { header:'الاسم',     key:'name',  width:40 },
+                { header:'الفعلي',    key:'qs',    width:12 },
+                { header:'المجرود',   key:'qi',    width:12 },
+                { header:'الفرق',     key:'diff',  width:12 },
+                { header:'الحالة',    key:'status',width:12 },
+            ];
+
+            // تنسيق رأس الجدول
+            const headerRow = ws.getRow(1);
+            headerRow.height = 22;
+            headerRow.eachCell(cell => {
+                cell.font      = { bold:true, color:{ argb:'FFFFFFFF' }, size:11, name:'Cairo' };
+                cell.fill      = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1E2A3E' } };
+                cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true, readingOrder:'rtl' };
+                cell.border    = { bottom:{ style:'medium', color:{ argb:'FF00D4AA' } } };
+            });
+
+            // إضافة الصفوف بالألوان
+            const colorMap = {
+                increase: { fill:'FF0D3B2A', font:'FF00D4AA', label:'زيادة' },
+                decrease: { fill:'FF3B0D0D', font:'FFFF6B6B', label:'نقص'   },
+                match:    { fill:'FF0D1E3B', font:'FF38BDF8', label:'مطابق' },
+                none:     { fill:'FF1A1A2E', font:'FF9CA3AF', label:'—'     },
+            };
+
+            rows.forEach(r => {
+                const type = r.diff > 0 ? 'increase' : r.diff < 0 ? 'decrease' : r.qi > 0 ? 'match' : 'none';
+                const c    = colorMap[type];
+                const icon = r.diff > 0 ? '⬆' : r.diff < 0 ? '⬇' : r.qi > 0 ? '✓' : '—';
+                const dataRow = ws.addRow({
+                    bc: r.bc, k: r.k, name: r.name,
+                    qs: r.qs, qi: r.qi,
+                    diff: (r.diff > 0 ? '+' : '') + r.diff,
+                    status: icon + ' ' + c.label
+                });
+                dataRow.height = 18;
+                dataRow.eachCell({ includeEmpty:true }, cell => {
+                    cell.fill      = { type:'pattern', pattern:'solid', fgColor:{ argb: c.fill } };
+                    cell.font      = { color:{ argb: c.font }, name:'Cairo', bold: ['diff','status'].includes(cell._column.key) };
+                    cell.alignment = { horizontal:'center', vertical:'middle', readingOrder:'rtl' };
+                    cell.border    = { bottom:{ style:'thin', color:{ argb:'FF2A2A3E' } } };
+                });
+            });
+
+            // تجميد الصف الأول
+            ws.views = [{ state:'frozen', ySplit:1, rightToLeft:true }];
+
+            updateProgress(85, 'كتابة الملف...');
+            const buf  = await wb.xlsx.writeBuffer();
+            const fileName = 'مقارنة_الجرد_' + new Date().toLocaleDateString('ar-SA').replace(/\//g,'-') + '.xlsx';
+            downloadFile(buf, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            hideProgress();
+            showToast('✓ تم تصدير المقارنة بالألوان');
+        });
+    };
+
+    document.getElementById('globalResetBtn').onclick = () => {
+        if (confirm("⚠️ سيتم حذف جميع البيانات نهائياً. متابعة؟")) {
+            if (html5QrScanner) { html5QrScanner.stop().catch(() => {}); html5QrScanner = null; }
+            if (db) { db.close(); db = null; }
+            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+            deleteRequest.onsuccess = () => window.location.reload();
+            deleteRequest.onerror = () => window.location.reload();
+            deleteRequest.onblocked = () => window.location.reload();
+        }
+    };
+    document.getElementById('globalManualBtn').onclick = () => document.getElementById('productModal').style.display = 'flex';
+    document.getElementById('closeModalBtn').onclick = () => document.getElementById('productModal').style.display = 'none';
+    document.getElementById('saveProductBtn').onclick = async () => {
+        let itemNo = document.getElementById('modalItemNo').value.trim(), name = document.getElementById('modalName').value.trim(), barcode = document.getElementById('modalBarcode').value.trim(), qty = parseFloat(document.getElementById('modalQty').value)||0;
+        if ((!itemNo && !barcode) || !name) { alert("يرجى ملء الحقول الأساسية"); return; }
+        const tx = db.transaction(["products","stock"], "readwrite");
+        tx.objectStore("products").add({ id: generateUniqueId(), item_no: itemNo, barcode, name, sourceId: "manual" });
+        if (qty>0) tx.objectStore("stock").put({ key: itemNo||barcode, name, qty });
+        await new Promise(r=>{ tx.oncomplete=r; });
+        document.getElementById('productModal').style.display='none';
+        updateAllUI(); showToast("تمت الإضافة");
+    };
+    document.getElementById('stockUploadArea').addEventListener('click',()=>document.getElementById('stockFileInput').click());
+    document.getElementById('dbUploadArea').addEventListener('click',()=>document.getElementById('dbFileInput').click());
+    document.getElementById('clearProductsBtn').onclick = () => {
+        if(confirm("مسح كل المنتجات؟")){
+            const tx1=db.transaction("products","readwrite"); tx1.objectStore("products").clear();
+            const tx2=db.transaction("uploadedFiles","readwrite"); tx2.objectStore("uploadedFiles").clear();
+            Promise.all([new Promise(r=>{ tx1.oncomplete=r; }), new Promise(r=>{ tx2.oncomplete=r; })]).then(()=>{ updateAllUI(); showToast("تم مسح المنتجات"); });
+        }
+    };
+    // ── شريط التقدم ──
+    function showProgress(title, sub, pct) {
+        document.getElementById('progressOverlay').classList.add('show');
+        document.getElementById('progressTitle').textContent = title || 'جاري المعالجة...';
+        document.getElementById('progressSub').textContent   = sub  || '';
+        updateProgress(pct || 0);
+    }
+    function updateProgress(pct, sub) {
+        pct = Math.min(100, Math.max(0, pct));
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressPct').textContent  = Math.round(pct) + '%';
+        if (sub !== undefined) document.getElementById('progressSub').textContent = sub;
+    }
+    function hideProgress() {
+        updateProgress(100);
+        setTimeout(() => document.getElementById('progressOverlay').classList.remove('show'), 400);
+    }
+
+    // ── تبديل الثيم ──
+    const themeBtn = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('invTheme') || 'dark';
+    if (savedTheme === 'light') { document.body.classList.add('light-theme'); themeBtn.innerHTML = '<i class="fas fa-sun"></i>'; }
+    themeBtn.onclick = () => {
+        const isLight = document.body.classList.toggle('light-theme');
+        themeBtn.innerHTML = isLight ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        localStorage.setItem('invTheme', isLight ? 'light' : 'dark');
+    };
+
+    // ── استيراد الجرد ──
+    async function importInventory(mode) {
+        const file = document.getElementById('invImportFile').files[0];
+        if (!file) { showToast('اختر ملف أولاً', true); return; }
+        showProgress('استيراد الجرد...', 'جاري قراءة الملف', 5);
+        try {
+            const buf  = await file.arrayBuffer();
+            updateProgress(20, 'تحليل البيانات...');
+            const wb   = XLSX.read(buf, { type: 'array' });
+            const ws   = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            if (!rows.length) { hideProgress(); showToast('الملف فارغ', true); return; }
+            const cols = Object.keys(rows[0]);
+            const keyCol  = cols.find(k => /item|رقم|code|كود|barcode|باركود/i.test(k)) || cols[0];
+            const nameCol = cols.find(k => /name|اسم|وصف|desc/i.test(k))               || cols[1];
+            const qtyCol  = cols.find(k => /qty|كمية|quant|count/i.test(k))             || cols[2];
+            const now = Date.now();
+
+            if (mode === 'replace') {
+                updateProgress(30, 'مسح البيانات القديمة...');
+                await new Promise(r => { const t=db.transaction(['inventory','scanLog'],'readwrite'); t.objectStore('inventory').clear(); t.objectStore('scanLog').clear(); t.oncomplete=r; });
+            }
+
+            const tx = db.transaction(['inventory','scanLog'], 'readwrite');
+            const invS = tx.objectStore('inventory');
+            const logS = tx.objectStore('scanLog');
+            let count = 0;
+            const total = rows.filter(row => {
+                const key = String(row[keyCol]||'').trim().replace(/\.0+$/,'');
+                const qty = parseInt(row[qtyCol]) || 0;
+                return key && qty > 0;
+            }).length;
+
+            for (const row of rows) {
+                const key  = String(row[keyCol]||'').trim().replace(/\.0+$/,'');
+                const name = String(row[nameCol]||'').trim();
+                const qty  = parseInt(row[qtyCol]) || 0;
+                if (!key || qty <= 0) continue;
+                count++;
+                updateProgress(30 + (count / total) * 60, `معالجة ${count} / ${total}`);
+                if (mode === 'merge') {
+                    const existing = await new Promise(r => invS.get(key).onsuccess = e => r(e.target.result));
+                    const newQty = (existing ? existing.qty : 0) + qty;
+                    invS.put({ key, name: existing?.name||name, qty: newQty, barcode: existing?.barcode||key, item_no: key, timestamp: now });
+                    for (let i=0;i<qty;i++) logS.add({ itemCode:key, name:existing?.name||name, barcode:key, timestamp: now+count*1000+i });
+                } else {
+                    invS.put({ key, name, qty, barcode:key, item_no:key, timestamp: now });
+                    for (let i=0;i<qty;i++) logS.add({ itemCode:key, name, barcode:key, timestamp: now+count*1000+i });
+                }
+            }
+            await new Promise(r => { tx.oncomplete = r; });
+            updateProgress(100, 'اكتمل!');
+            hideProgress();
+            showToast(`✓ تم استيراد ${count} صنف — ${mode==='replace'?'تحديث':'دمج'}`);
+            document.getElementById('invImportFile').value = '';
+            updateAllUI();
+        } catch(e) { console.error(e); hideProgress(); showToast('خطأ في قراءة الملف', true); }
+    }
+    document.getElementById('invImportReplaceBtn').onclick = () => { if (confirm('سيُمسح الجرد الحالي بالكامل ويُستبدل. متأكد؟')) importInventory('replace'); };
+    document.getElementById('invImportMergeBtn').onclick   = () => importInventory('merge');
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', function() {
+        let target = this.getAttribute('data-tab');
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active-pane'));
+        document.getElementById(target).classList.add('active-pane');
+        updateAllUI();
+    }));
+
+    function initDB() {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains("products")) db.createObjectStore("products", { keyPath: "id", autoIncrement: false });
+            if (!db.objectStoreNames.contains("inventory")) db.createObjectStore("inventory", { keyPath: "key" });
+            if (!db.objectStoreNames.contains("stock")) db.createObjectStore("stock", { keyPath: "key" });
+            if (!db.objectStoreNames.contains("uploadedFiles")) db.createObjectStore("uploadedFiles", { keyPath:"id", autoIncrement:true });
+            if (!db.objectStoreNames.contains("scanLog")) {
+                const sl = db.createObjectStore("scanLog", { keyPath: "id", autoIncrement: true });
+                sl.createIndex("by_time", "timestamp");
+            }
+        };
+        req.onsuccess = (e) => { db = e.target.result; updateAllUI(); listCameras(); };
+        req.onerror = (e) => console.error(e);
+    }
+    initDB();
+</script>
+</body>
+</html>
